@@ -37,3 +37,9 @@ td {
         display: block;
         color: #2a6;
     }
+
+/* 讓左側時間欄位顯示兩行更漂亮 */
+th.time {
+    width: 90px;
+    line-height: 1.2;
+}
