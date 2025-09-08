@@ -1,50 +1,263 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中興課表（自填）</title>
-    <link rel="stylesheet" href="style.css">
+    <meta charset="utf-8" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>中興課表（自填／QR 匯入）</title>
+
+    <!-- PWA / Icons -->
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NCHU 課表" />
+    <meta name="theme-color" content="#0ea5e9" />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        /* 可選：最小必要排版（若你已有 style.css 可忽略） */
+        body {
+            margin: 0;
+            background: #0b1220;
+            color: #e5f2ff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif
+        }
+
+        .wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: 28px;
+            color: #7dd3fc
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 14px
+        }
+
+            .toolbar button {
+                padding: 10px 14px;
+                border: 1px solid #334155;
+                background: #0ea5e9;
+                color: #fff;
+                border-radius: 8px;
+                cursor: pointer
+            }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 100px repeat(5,1fr);
+            border: 2px solid #64748b;
+            border-radius: 10px;
+            overflow: hidden
+        }
+
+        .head, .time, .cell {
+            border-right: 2px solid #475569;
+            border-bottom: 2px solid #475569;
+            min-height: 72px;
+            padding: 10px
+        }
+
+        .head {
+            background: #0f172a;
+            color: #a5f3fc;
+            font-weight: 700;
+            text-align: center
+        }
+
+        .time {
+            background: #0f172a;
+            color: #93c5fd;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: pre-line
+        }
+
+        .cell {
+            background: #0b1220;
+            color: #e5f2ff;
+            white-space: pre-line
+        }
+
+            .cell:empty::after {
+                content: "\00a0"
+            }
+
+        .note {
+            margin-top: 10px;
+            color: #94a3b8;
+            font-size: 13px
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>中興課表（自填）</h1>
-        <div class="actions">
-            <button id="btnAdd">新增課程</button>
-            <button id="btnExport">匯出</button>
-            <button id="btnImport">匯入</button>
-            <button id="btnClear">清空</button>
-            <button id="btnScan" class="primary">掃描 QR 匯入</button>
+    <div class="wrap">
+        <h1>中興課表（自填／QR 匯入）</h1>
+
+        <div class="toolbar">
+            <button id="btn-scan">📷 掃描 QR</button>
+            <button id="btn-paste">📋 手動貼上 JSON</button>
+            <button id="btn-clear">🧹 清空</button>
+            <!-- 圖片備援：BarcodeDetector 不可用時會觸發 -->
+            <input id="qr-file" type="file" accept="image/*" capture="environment" hidden />
         </div>
-    </header>
 
-    <main>
-        <div id="grid" class="grid"></div>
-    </main>
+        <!-- 課表：左邊時間欄 + 週一~週五五欄 -->
+        <div class="grid" id="timetable">
+            <!-- 第一列標題 -->
+            <div class="head">時間</div>
+            <div class="head">星期一</div>
+            <div class="head">星期二</div>
+            <div class="head">星期三</div>
+            <div class="head">星期四</div>
+            <div class="head">星期五</div>
 
-    <!-- 匯入對話框 -->
-    <dialog id="importDlg">
-        <h3>匯入課表 JSON</h3>
-        <textarea id="importTxt" placeholder="貼上 JSON 文字…" rows="10"></textarea>
-        <menu>
-            <button id="btnImportOk">匯入</button>
-            <button id="btnImportCancel">取消</button>
-        </menu>
-    </dialog>
+            <!--
+              時段表（共 14 段；可依需要增減）
+              每列：1 個時間欄 + 5 個 data-day=1..5 的格子
+              data-slot 由 1 起連續遞增（對應 NCHU JSON 的 s 陣列）
+            -->
+            <!-- slot 1 -->
+            <div class="time">08:10\n09:00</div>
+            <div class="cell" data-day="1" data-slot="1"></div>
+            <div class="cell" data-day="2" data-slot="1"></div>
+            <div class="cell" data-day="3" data-slot="1"></div>
+            <div class="cell" data-day="4" data-slot="1"></div>
+            <div class="cell" data-day="5" data-slot="1"></div>
 
-    <!-- 掃描 QR 對話框 -->
-    <dialog id="scanDlg">
-        <div style="padding:12px 12px 0 12px">
-            <h3>掃描 QR Code</h3>
-            <video id="scanVideo" playsinline style="width:100%; max-height:60vh; border-radius:10px; background:#000"></video>
-            <p id="scanHint" style="color:#666; font-size:14px; margin:8px 0 0 0">把 QR 放在畫面中央…</p>
+            <!-- slot 2 -->
+            <div class="time">09:10\n10:00</div>
+            <div class="cell" data-day="1" data-slot="2"></div>
+            <div class="cell" data-day="2" data-slot="2"></div>
+            <div class="cell" data-day="3" data-slot="2"></div>
+            <div class="cell" data-day="4" data-slot="2"></div>
+            <div class="cell" data-day="5" data-slot="2"></div>
+
+            <!-- slot 3 -->
+            <div class="time">10:10\n11:00</div>
+            <div class="cell" data-day="1" data-slot="3"></div>
+            <div class="cell" data-day="2" data-slot="3"></div>
+            <div class="cell" data-day="3" data-slot="3"></div>
+            <div class="cell" data-day="4" data-slot="3"></div>
+            <div class="cell" data-day="5" data-slot="3"></div>
+
+            <!-- slot 4 -->
+            <div class="time">11:10\n12:00</div>
+            <div class="cell" data-day="1" data-slot="4"></div>
+            <div class="cell" data-day="2" data-slot="4"></div>
+            <div class="cell" data-day="3" data-slot="4"></div>
+            <div class="cell" data-day="4" data-slot="4"></div>
+            <div class="cell" data-day="5" data-slot="4"></div>
+
+            <!-- slot 5 -->
+            <div class="time">13:10\n14:00</div>
+            <div class="cell" data-day="1" data-slot="5"></div>
+            <div class="cell" data-day="2" data-slot="5"></div>
+            <div class="cell" data-day="3" data-slot="5"></div>
+            <div class="cell" data-day="4" data-slot="5"></div>
+            <div class="cell" data-day="5" data-slot="5"></div>
+
+            <!-- slot 6 -->
+            <div class="time">14:10\n15:00</div>
+            <div class="cell" data-day="1" data-slot="6"></div>
+            <div class="cell" data-day="2" data-slot="6"></div>
+            <div class="cell" data-day="3" data-slot="6"></div>
+            <div class="cell" data-day="4" data-slot="6"></div>
+            <div class="cell" data-day="5" data-slot="6"></div>
+
+            <!-- slot 7 -->
+            <div class="time">15:10\n16:00</div>
+            <div class="cell" data-day="1" data-slot="7"></div>
+            <div class="cell" data-day="2" data-slot="7"></div>
+            <div class="cell" data-day="3" data-slot="7"></div>
+            <div class="cell" data-day="4" data-slot="7"></div>
+            <div class="cell" data-day="5" data-slot="7"></div>
+
+            <!-- slot 8 -->
+            <div class="time">16:10\n17:00</div>
+            <div class="cell" data-day="1" data-slot="8"></div>
+            <div class="cell" data-day="2" data-slot="8"></div>
+            <div class="cell" data-day="3" data-slot="8"></div>
+            <div class="cell" data-day="4" data-slot="8"></div>
+            <div class="cell" data-day="5" data-slot="8"></div>
+
+            <!-- slot 9 -->
+            <div class="time">17:10\n18:00</div>
+            <div class="cell" data-day="1" data-slot="9"></div>
+            <div class="cell" data-day="2" data-slot="9"></div>
+            <div class="cell" data-day="3" data-slot="9"></div>
+            <div class="cell" data-day="4" data-slot="9"></div>
+            <div class="cell" data-day="5" data-slot="9"></div>
+
+            <!-- slot 10 -->
+            <div class="time">18:20\n19:10</div>
+            <div class="cell" data-day="1" data-slot="10"></div>
+            <div class="cell" data-day="2" data-slot="10"></div>
+            <div class="cell" data-day="3" data-slot="10"></div>
+            <div class="cell" data-day="4" data-slot="10"></div>
+            <div class="cell" data-day="5" data-slot="10"></div>
+
+            <!-- slot 11 -->
+            <div class="time">19:15\n20:05</div>
+            <div class="cell" data-day="1" data-slot="11"></div>
+            <div class="cell" data-day="2" data-slot="11"></div>
+            <div class="cell" data-day="3" data-slot="11"></div>
+            <div class="cell" data-day="4" data-slot="11"></div>
+            <div class="cell" data-day="5" data-slot="11"></div>
+
+            <!-- slot 12 -->
+            <div class="time">20:10\n21:00</div>
+            <div class="cell" data-day="1" data-slot="12"></div>
+            <div class="cell" data-day="2" data-slot="12"></div>
+            <div class="cell" data-day="3" data-slot="12"></div>
+            <div class="cell" data-day="4" data-slot="12"></div>
+            <div class="cell" data-day="5" data-slot="12"></div>
+
+            <!-- slot 13 -->
+            <div class="time">21:05\n21:55</div>
+            <div class="cell" data-day="1" data-slot="13"></div>
+            <div class="cell" data-day="2" data-slot="13"></div>
+            <div class="cell" data-day="3" data-slot="13"></div>
+            <div class="cell" data-day="4" data-slot="13"></div>
+            <div class="cell" data-day="5" data-slot="13"></div>
+
+            <!-- 預留（若未用可刪） slot 14 -->
+            <div class="time">（預留）</div>
+            <div class="cell" data-day="1" data-slot="14"></div>
+            <div class="cell" data-day="2" data-slot="14"></div>
+            <div class="cell" data-day="3" data-slot="14"></div>
+            <div class="cell" data-day="4" data-slot="14"></div>
+            <div class="cell" data-day="5" data-slot="14"></div>
         </div>
-        <menu>
-            <button id="btnScanClose">取消</button>
-        </menu>
-    </dialog>
 
+        <p class="note">
+            小提醒：若相機權限被拒，可用「手動貼上 JSON」或點「掃描 QR」後選擇相簿圖片匯入。<br />
+            iOS 加到主畫面後可離線使用。
+        </p>
+    </div>
+
+    <!-- App script -->
     <script src="app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+    <!-- Service Worker -->
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("./sw.js").catch(console.error);
+            });
+        }
+    </script>
 </body>
 </html>
