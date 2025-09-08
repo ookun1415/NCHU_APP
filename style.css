@@ -1,46 +1,123 @@
 body {
     font-family: "Microsoft JhengHei", sans-serif;
-    background: #f9f9f9;
+    background: #f5f7fa;
     margin: 0;
     padding: 20px;
 }
 
-#app {
-    max-width: 900px;
-    margin: auto;
+h1 {
     text-align: center;
 }
 
-table {
+.button-group {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+button {
+    margin: 5px;
+    padding: 10px 16px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#scanQR {
+    background: #0d6efd;
+    color: #fff;
+}
+
+#clear {
+    background: #dc3545;
+    color: #fff;
+}
+
+#timetable {
+    margin: auto;
+    max-width: 900px;
+}
+
+table.grid {
     width: 100%;
     border-collapse: collapse;
-    background: white;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
-th, td {
-    border: 1px solid #ccc;
-    padding: 10px;
-    text-align: center;
-    vertical-align: middle;
-}
-
-th {
-    background: #f0f0f0;
-}
-
-td {
-    height: 80px;
-}
-
-    td b {
-        display: block;
-        color: #2a6;
+    table.grid th, table.grid td {
+        border: 1px solid #ccc;
+        text-align: center;
+        vertical-align: middle;
+        height: 70px;
     }
 
-/* 讓字串中的換行字元顯示成斷行（關鍵） */
-th.time {
-    width: 90px;
-    line-height: 1.3;
-    white-space: normal; /* <— 改成 normal，配合 <br> 強制換行 */
+.time-cell {
+    background: #e9ecef;
+    font-weight: bold;
+}
+
+.course {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #0d6efd; /* 藍色背景 */
+    border: 1px solid #0b5ed7;
+    color: #ffffff; /* 白色字 */
+    line-height: 1.25;
+    margin-bottom: 6px;
+    box-shadow: 0 1px 0 0 #0003 inset;
+}
+
+    .course .name {
+        font-weight: 800;
+    }
+
+    .course .meta {
+        font-size: 12px;
+        color: #dbe9ff; /* 淡藍色文字 */
+        margin-top: 4px;
+    }
+
+/* 全螢幕 QR 模式 */
+#qrModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+    #qrModal video {
+        width: 100%;
+        max-height: 80%;
+        background: black;
+    }
+
+    #qrModal button {
+        margin: 10px;
+        padding: 12px 20px;
+        font-size: 18px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+#captureBtn {
+    background: #28a745;
+    color: white;
+}
+
+#closeQR {
+    background: #dc3545;
+    color: white;
+}
+
+#cameraStatus {
+    color: orange;
+    margin-top: 10px;
 }
