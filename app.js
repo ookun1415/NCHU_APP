@@ -1,65 +1,86 @@
-const courses = [
-    { name: "行動通訊", day: 2, time: "08:10", room: "EE207" },
-    { name: "隨機程序", day: 3, time: "10:10", room: "EE207" },
-    { name: "通訊研討", day: 4, time: "13:10", room: "EE108" },
-    { name: "影像處理", day: 4, time: "15:10", room: "EE204" },
-    { name: "數位通訊", day: 5, time: "10:10", room: "EE207" },
-    { name: "通訊工程專題", day: 5, time: "15:10", room: "EE106" }
-];
-
-// 直接用兩段字串定義（上課開始、結束）
-const times = [
+// ====== 課表顯示設定 ======
+const DAYS = ["星期一", "星期二", "星期三", "星期四", "星期五"];
+const TIME_SLOTS = [
     ["08:10", "09:00"],
     ["09:10", "10:00"],
     ["10:10", "11:00"],
     ["11:10", "12:00"],
     ["13:10", "14:00"],
     ["14:10", "15:00"],
-    ["15:10", "16:00"],
-    ["16:10", "17:00"]
+    ["15:10", "16:00"]
 ];
 
+// ====== 從 localStorage 載入 ======
+function loadSchedule() {
+    try {
+        return JSON.parse(localStorage.getItem("schedule") || "[]");
+    } catch {
+        return [];
+    }
+}
+
+// ====== 繪製課表 ======
 function renderTable() {
-    const container = document.getElementById("timetable");
-    const table = document.createElement("table");
+    const table = document.getElementById("timetable");
+    table.innerHTML = "";
+
+    const tbl = document.createElement("table");
+    tbl.className = "grid";
 
     // 表頭
-    const headerRow = document.createElement("tr");
-    const thEmpty = document.createElement("th");
-    thEmpty.className = "time";
-    headerRow.appendChild(thEmpty);
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
 
-    ["一", "二", "三", "四", "五"].forEach(d => {
+    const thTime = document.createElement("th");
+    thTime.className = "time-cell";
+    thTime.textContent = "時間";
+    headRow.appendChild(thTime);
+
+    DAYS.forEach(d => {
         const th = document.createElement("th");
-        th.textContent = `星期${d}`;
-        headerRow.appendChild(th);
+        th.textContent = d;
+        headRow.appendChild(th);
     });
-    table.appendChild(headerRow);
+    thead.appendChild(headRow);
+    tbl.appendChild(thead);
 
-    // 每列
-    times.forEach(([start, end]) => {
-        const row = document.createElement("tr");
+    // 表身
+    const tbody = document.createElement("tbody");
+    const courses = loadSchedule();
 
-        // 左邊時間：強制換行
-        const th = document.createElement("th");
-        th.className = "time";
-        th.innerHTML = `${start}<br>${end}`;
-        row.appendChild(th);
+    TIME_SLOTS.forEach(([start, end], slotIndex) => {
+        const tr = document.createElement("tr");
+
+        const tdTime = document.createElement("td");
+        tdTime.className = "time-cell";
+        tdTime.innerHTML = `<span class="line">${start}</span><span class="line">${end}</span>`;
+        tr.appendChild(tdTime);
 
         for (let day = 1; day <= 5; day++) {
             const td = document.createElement("td");
-            const course = courses.find(c => c.day === day && c.time === start);
-            if (course) {
-                td.innerHTML = `<b>${course.name}</b><br>${course.room}`;
-            }
-            row.appendChild(td);
-        }
 
-        table.appendChild(row);
+            // 找出該時段課程
+            const course = courses.find(c => {
+                return c.d && c.d.some(seg => seg.w === day && seg.s.includes(slotIndex));
+            });
+
+            if (course) {
+                td.innerHTML = `
+          <div class="course">
+            <div class="name">${course.n || "未命名課程"}</div>
+            <div class="meta">(${course.m || ""}) ${course.e || ""}</div>
+          </div>
+        `;
+            }
+
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
     });
 
-    container.innerHTML = "";
-    container.appendChild(table);
+    tbl.appendChild(tbody);
+    table.appendChild(tbl);
 }
 
+// ====== 啟動 ======
 renderTable();
