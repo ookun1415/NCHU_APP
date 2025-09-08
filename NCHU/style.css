@@ -1,0 +1,180 @@
+:root {
+    --bg: #ffffff;
+    --line: #777; /* 表格線顏色（粗） */
+    --text: #111;
+    --border: #e5e7eb;
+    --accent: #0ea5e9;
+    --danger: #cc3344;
+}
+
+/* 版面骨架 */
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui,-apple-system,"PingFang TC","Noto Sans TC",Arial;
+}
+
+.app {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-rows: auto 1fr
+}
+
+.safe {
+    padding-bottom: env(safe-area-inset-bottom)
+}
+
+.top {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.title {
+    font-weight: 800
+}
+
+button {
+    all: unset;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border)
+}
+
+.primary {
+    background: var(--accent);
+    color: #001018;
+    border: none
+}
+
+.ghost {
+    color: #0b4663
+}
+
+.danger {
+    color: #a11326;
+    border-color: #f0c7cd
+}
+
+.content {
+    padding: 12px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch
+}
+
+.meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px
+}
+
+    .meta input {
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px
+    }
+
+/* 課表外框 */
+.table {
+    width: min(1000px,100%);
+    background: #fff;
+    border: 2px solid var(--line); /* 外框粗線 */
+    border-right: none;
+    border-bottom: none;
+    margin: auto;
+    box-shadow: 0 8px 30px rgba(0,0,0,.06);
+    overflow: auto;
+}
+
+/* 5 天 + 左側時間欄（窄） */
+.grid {
+    display: grid;
+    grid-template-columns: 56px repeat(5,1fr); /* 左欄 + 5 天 */
+}
+
+
+/* 表頭 / 資料格 */
+.th, .td {
+    border-right: 2px solid var(--line);
+    border-bottom: 2px solid var(--line);
+    padding: 6px 4px;
+    text-align: center;
+    white-space: pre-line;
+}
+
+.th {
+    background: #f5f7fb;
+    font-weight: 700;
+    color: #222
+}
+
+/* 左側時間欄（多行顯示） */
+.time {
+    background: #fff;
+    color: #333;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.3;
+    white-space: pre-line; /* ← 顯示 \n 為多行 */
+}
+
+/* 可編輯的課表格子 */
+.cell {
+    min-height: 62px; /* 每格高度，可自行調整 */
+    font-size: 14px;
+    line-height: 1.35;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+}
+
+    .cell:hover {
+        background: #f8fbff
+    }
+
+/* Dialog */
+dialog {
+    border: none;
+    border-radius: 14px;
+    max-width: min(540px,92vw);
+    padding: 0;
+    overflow: hidden
+}
+
+    dialog::backdrop {
+        background: rgba(0,0,0,.3)
+    }
+
+#cellForm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px
+}
+
+    #cellForm textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        resize: vertical
+    }
+
+menu {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 14px 14px
+}

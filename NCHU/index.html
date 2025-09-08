@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中興課表（自填）</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>中興課表（自填）</h1>
+        <div class="actions">
+            <button id="btnAdd">新增課程</button>
+            <button id="btnExport">匯出</button>
+            <button id="btnImport">匯入</button>
+            <button id="btnClear">清空</button>
+            <button id="btnScan" class="primary">掃描 QR 匯入</button>
+        </div>
+    </header>
+
+    <main>
+        <div id="grid" class="grid"></div>
+    </main>
+
+    <!-- 匯入對話框 -->
+    <dialog id="importDlg">
+        <h3>匯入課表 JSON</h3>
+        <textarea id="importTxt" placeholder="貼上 JSON 文字…" rows="10"></textarea>
+        <menu>
+            <button id="btnImportOk">匯入</button>
+            <button id="btnImportCancel">取消</button>
+        </menu>
+    </dialog>
+
+    <!-- 掃描 QR 對話框 -->
+    <dialog id="scanDlg">
+        <div style="padding:12px 12px 0 12px">
+            <h3>掃描 QR Code</h3>
+            <video id="scanVideo" playsinline style="width:100%; max-height:60vh; border-radius:10px; background:#000"></video>
+            <p id="scanHint" style="color:#666; font-size:14px; margin:8px 0 0 0">把 QR 放在畫面中央…</p>
+        </div>
+        <menu>
+            <button id="btnScanClose">取消</button>
+        </menu>
+    </dialog>
+
+    <script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+</body>
+</html>
