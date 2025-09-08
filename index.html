@@ -1,423 +1,71 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>中興課表（自填／QR 匯入）</title>
-
-    <!-- 簡潔樣式（若你已有 style.css，可改成外連） -->
-    <style>
-        :root {
-            --bg: #0e1621;
-            --panel: #111b27;
-            --grid: #2a3a4a;
-            --text: #c7efff;
-            --muted: #8fb7cc;
-            --brand: #2eaadc;
-        }
-
-        * {
-            box-sizing: border-box
-        }
-
-        html, body {
-            height: 100%;
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: ui-sans-serif,system-ui,Segoe UI,Helvetica,Arial,"Noto Sans TC"
-        }
-
-        .wrap {
-            max-width: 1100px;
-            margin: 32px auto 80px;
-            padding: 0 16px
-        }
-
-        h1 {
-            font-size: 24px;
-            margin: 0 0 16px;
-            letter-spacing: .5px
-        }
-
-        .toolbar {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 16px
-        }
-
-        .btn {
-            appearance: none;
-            border: 1px solid var(--grid);
-            background: var(--panel);
-            color: var(--text);
-            padding: 10px 14px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 700;
-            letter-spacing: .3px
-        }
-
-            .btn:hover {
-                border-color: var(--brand);
-                box-shadow: 0 0 0 2px #2eaadc30 inset
-            }
-
-            .btn.brand {
-                background: #123241;
-                border-color: #215e78;
-                color: #d9f7ff
-            }
-
-            .btn.danger {
-                background: #35181a;
-                border-color: #6d2a2f;
-                color: #ffd6d4
-            }
-
-        .table-wrap {
-            overflow: auto;
-            border-radius: 12px
-        }
-
-        .grid {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            table-layout: fixed;
-            background: var(--panel);
-            border: 1px solid var(--grid);
-            border-radius: 12px;
-            overflow: hidden
-        }
-
-            .grid th, .grid td {
-                border-right: 1px solid var(--grid);
-                border-bottom: 1px solid var(--grid);
-                padding: 10px 12px;
-                vertical-align: top
-            }
-
-                .grid th:last-child, .grid td:last-child {
-                    border-right: none
-                }
-
-            .grid tr:last-child td {
-                border-bottom: none
-            }
-
-            .grid thead th {
-                background: #0f2230;
-                color: #d9f7ff;
-                font-weight: 800;
-                text-align: center;
-                position: sticky;
-                top: 0;
-                z-index: 1
-            }
-
-        .time-cell {
-            color: #a6d8ea;
-            font-weight: 800;
-            text-align: center;
-            width: 110px;
-            white-space: normal
-        }
-
-            .time-cell .line {
-                display: block
-            }
-
-                .time-cell .line + .line {
-                    color: var(--muted);
-                    font-weight: 700
-                }
-
-        .course {
-            display: block;
-            padding: 8px 10px;
-            border-radius: 10px;
-            background: #112838;
-            border: 1px solid #2b536a;
-            color: #d9f7ff;
-            line-height: 1.25;
-            margin-bottom: 6px;
-            box-shadow: 0 1px 0 0 #000a inset
-        }
-
-            .course .name {
-                font-weight: 800
-            }
-
-            .course .meta {
-                font-size: 12px;
-                color: #9ed3e6;
-                margin-top: 4px
-            }
-        /* 簡單響應式 */
-        @media (max-width:560px) {
-            .time-cell {
-                width: 84px
-            }
-
-            .toolbar .btn {
-                padding: 9px 12px
-            }
-        }
-        /* 掃描器彈窗 */
-        #scanner-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: #000a;
-            backdrop-filter: blur(2px);
-            align-items: center;
-            justify-content: center;
-            z-index: 10
-        }
-
-        #scanner-panel {
-            width: min(92vw,520px);
-            background: #0f2230;
-            border: 1px solid #2a3a4a;
-            border-radius: 12px;
-            padding: 12px 12px 6px
-        }
-
-        #scanner-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px
-        }
-    </style>
-
-    <!-- QR 掃描器（支援 iOS Safari） -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
-
-    <!-- PWA (可選) -->
-    <link rel="manifest" href="manifest.json" />
-    <meta name="theme-color" content="#0e1621" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中興課表 (自填 / QR 匯入)</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
-    <div class="wrap">
-        <h1>中興課表（自填／QR 匯入）</h1>
-
-        <div class="toolbar">
-            <button id="btn-scan" class="btn brand">📷 掃描 QR</button>
-            <button id="btn-paste" class="btn">📋 手動貼上 JSON</button>
-            <button id="btn-clear" class="btn danger">🧹 清空</button>
+    <div class="container">
+        <h1>中興課表（自填 / QR 匯入）</h1>
+        <div class="button-group">
+            <button id="scanQR">📷 掃描 QR</button>
+            <button id="pasteJSON">📋 手動貼上 JSON</button>
+            <button id="clear">🗑 清空</button>
         </div>
+        <div id="timetable"></div>
+    </div>
 
-        <div class="table-wrap">
-            <table class="grid" id="table">
-                <thead>
-                    <tr>
-                        <th class="time-cell">時間</th>
-                        <th>星期一</th>
-                        <th>星期二</th>
-                        <th>星期三</th>
-                        <th>星期四</th>
-                        <th>星期五</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody"></tbody>
-            </table>
+    <!-- QR 掃描 Modal -->
+    <div id="qrModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>掃描 QR Code</h3>
+            <video id="video" autoplay playsinline style="width:100%;"></video>
+            <canvas id="canvas" hidden></canvas>
+            <p id="cameraStatus" style="color:orange;"></p>
+            <button id="closeQR">關閉</button>
         </div>
     </div>
 
-    <!-- 掃描器 Modal -->
-    <div id="scanner-modal">
-        <div id="scanner-panel">
-            <div id="scanner-head">
-                <strong>掃描 QR Code</strong>
-                <button id="scanner-close" class="btn danger" style="padding:.4rem .7rem">關閉</button>
-            </div>
-            <div id="qr-reader" style="width:100%"></div>
-            <div style="font-size:12px;color:#9ed3e6;margin:8px 2px 2px">
-                把 QR 放在畫面中央，對焦後自動辨識。若無法啟用相機，會提供「上傳圖片」備援。
-            </div>
-        </div>
-    </div>
+    <script src="app.js"></script>
 
     <script>
-        /************ 1) 固定時段（左側顯示） ************/
-        const TIME_SLOTS = [
-            ["08:10", "09:00"],
-            ["09:10", "10:00"],
-            ["10:10", "11:00"],
-            ["11:10", "12:00"],
-            ["13:10", "14:00"],
-            ["14:10", "15:00"],
-            ["15:10", "16:00"]
-        ]; // 需要增減就改這裡
+        document.getElementById("scanQR").addEventListener("click", () => {
+            const modal = document.getElementById("qrModal");
+            modal.style.display = "block";
 
-        const tbody = document.getElementById('tbody');
+            const video = document.getElementById("video");
+            const status = document.getElementById("cameraStatus");
 
-        function buildTable() {
-            tbody.innerHTML = '';
-            for (const [start, end] of TIME_SLOTS) {
-                const tr = document.createElement('tr');
-
-                const tdTime = document.createElement('td');
-                tdTime.className = 'time-cell';
-                tdTime.innerHTML = `<span class="line">${start}</span><span class="line">${end}</span>`;
-                tr.appendChild(tdTime);
-
-                for (let d = 1; d <= 5; d++) {
-                    const td = document.createElement('td');
-                    td.dataset.day = String(d); // 1..5
-                    tr.appendChild(td);
-                }
-                tbody.appendChild(tr);
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                status.textContent = "❌ 瀏覽器不支援相機 API。請用 Safari 開啟。";
+                alert("相機 API 不支援，請使用 Safari 並確認是 HTTPS 網址。");
+                return;
             }
-        }
 
-        /************ 2) 儲存 / 繪製 ************/
-        const LS_KEY = 'nchu-courses';
-        const loadCourses = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; } };
-        const saveCourses = (arr) => localStorage.setItem(LS_KEY, JSON.stringify(arr));
-
-        function renderCourses() {
-            document.querySelectorAll('#tbody td:not(.time-cell)').forEach(td => td.innerHTML = '');
-            const courses = loadCourses();
-
-            for (const course of courses) {
-                const { n: name = '課程', m: code = '', e: room = '', d = [] } = course;
-                for (const seg of d) {
-                    const w = Number(seg.w);            // 星期 1..5
-                    const slots = (seg.s || []).map(Number); // 第幾節（以 TIME_SLOTS 的 index 對應）
-
-                    for (const sec of slots) {
-                        const row = tbody.rows[sec];
-                        if (!row) continue;
-                        const td = row.querySelector(`td[data-day="${w}"]`);
-                        if (!td) continue;
-
-                        const div = document.createElement('div');
-                        div.className = 'course';
-                        div.innerHTML = `<div class="name">${name}</div><div class="meta">(${code}) · ${room || '—'}</div>`;
-                        td.appendChild(div);
-                    }
-                }
-            }
-        }
-
-        /************ 3) 匯入（手動貼上 / 解析） ************/
-        // 從任意字串取第一個 JSON（處理 QR 可能夾雜文字/連結）
-        function extractFirstJSONObject(text) {
-            const s = text.indexOf('{'); const e = text.lastIndexOf('}');
-            if (s !== -1 && e !== -1 && e > s) {
-                try { return JSON.parse(text.slice(s, e + 1)); } catch { }
-            }
-            return null;
-        }
-
-        function importFromJSONString(s) {
-            let obj = null;
-            try { obj = JSON.parse(s); }
-            catch { obj = extractFirstJSONObject(s); }
-            if (!obj) throw new Error('無法解析 JSON 內容');
-
-            const arr = Array.isArray(obj) ? obj : [obj];
-            saveCourses(arr);
-            buildTable(); renderCourses();
-            alert('課表已匯入！');
-        }
-
-        document.getElementById('btn-paste').addEventListener('click', () => {
-            const s = prompt('請貼上校務系統輸出的 JSON：');
-            if (!s) return;
-            try { importFromJSONString(s); }
-            catch (err) { alert('匯入失敗：' + err.message); }
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then((stream) => {
+                    video.srcObject = stream;
+                    status.textContent = "✅ 相機已啟動，請將 QR Code 放在畫面中央";
+                })
+                .catch((err) => {
+                    console.error("相機啟動失敗：", err.name, err.message);
+                    status.textContent = "❌ 相機啟動失敗: " + err.name + " - " + err.message;
+                    alert("相機啟動失敗: " + err.name + " - " + err.message);
+                });
         });
 
-        document.getElementById('btn-clear').addEventListener('click', () => {
-            if (confirm('確定清空課表嗎？')) {
-                saveCourses([]); buildTable(); renderCourses();
+        document.getElementById("closeQR").addEventListener("click", () => {
+            const modal = document.getElementById("qrModal");
+            modal.style.display = "none";
+
+            const video = document.getElementById("video");
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
             }
         });
-
-        /************ 4) QR 掃描（更穩定 / 含圖片備援） ************/
-        const modal = document.getElementById('scanner-modal');
-        const btnScan = document.getElementById('btn-scan');
-        const btnClose = document.getElementById('scanner-close');
-        let qrReader = null;
-        let currentCamId = null;
-
-        function onScanSuccess(decodedText) {
-            try { importFromJSONString(decodedText); stopScanner(); }
-            catch (err) {
-                console.warn('QR 內容：', decodedText);
-                alert('無法解析此 QR 內容，已列印在 console（請把內容貼給我）');
-            }
-        }
-        function onScanFailure() { /* ignore continuous errors */ }
-
-        async function startScanner() {
-            modal.style.display = 'flex';
-            try {
-                const cams = await Html5Qrcode.getCameras();
-                if (!cams || !cams.length) throw new Error('找不到相機');
-
-                const back = cams.find(c => /back|rear|environment/i.test(c.label));
-                currentCamId = (back ? back.id : cams[cams.length - 1].id);
-
-                if (!qrReader) {
-                    qrReader = new Html5Qrcode("qr-reader", {
-                        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-                    });
-                }
-                const config = { fps: 10, qrbox: { width: 260, height: 260 } };
-                await qrReader.start(currentCamId, config, onScanSuccess, onScanFailure);
-            } catch (e) {
-                console.warn('啟用相機失敗：', e);
-                // 圖片備援
-                document.getElementById('qr-reader').innerHTML = `
-              <div style="padding:10px;color:#9ed3e6;line-height:1.6">
-                <div style="margin-bottom:8px;"><b>相機無法啟用</b>（可能未授權，或非 Safari）。</div>
-                <div style="margin-bottom:10px;">
-                  請確認：使用 <b>Safari</b> 開啟本頁，且已允許相機；<br>
-                  或直接 <b>上傳含 QR 的圖片</b> 辨識：
-                </div>
-                <input id="qr-file" type="file" accept="image/*" style="display:block">
-              </div>`;
-                const fileInput = document.getElementById('qr-file');
-                fileInput?.addEventListener('change', async () => {
-                    const f = fileInput.files?.[0]; if (!f) return;
-                    try {
-                        if (!qrReader) qrReader = new Html5Qrcode("qr-reader");
-                        const result = await qrReader.scanFile(f, true);
-                        onScanSuccess(result);
-                    } catch (err) { alert('圖片辨識失敗：' + err); }
-                });
-            }
-        }
-
-        function stopScanner() {
-            if (qrReader) {
-                qrReader.stop().catch(() => { }).finally(() => {
-                    modal.style.display = 'none';
-                    document.getElementById('qr-reader').innerHTML = '';
-                    qrReader = null; currentCamId = null;
-                });
-            } else {
-                modal.style.display = 'none';
-            }
-        }
-        btnScan.addEventListener('click', startScanner);
-        btnClose.addEventListener('click', stopScanner);
-        modal.addEventListener('click', e => { if (e.target === modal) stopScanner(); });
-
-        /************ 5) 啟動 & PWA ************/
-        buildTable(); renderCourses();
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch(console.warn);
-            });
-        }
     </script>
 </body>
 </html>
