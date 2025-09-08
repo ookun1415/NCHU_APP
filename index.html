@@ -1,17 +1,405 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NCHU 課表</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>中興課表（自填／QR 匯入）</title>
+
+    <!-- 顏色與字體 -->
+    <style>
+        :root {
+            --bg: #0e1621; /* 背景深藍 */
+            --panel: #111b27; /* 面板深藍 */
+            --grid: #2a3a4a; /* 格線 */
+            --text: #c7efff; /* 主要字 */
+            --muted: #8fb7cc; /* 次要字 */
+            --brand: #2eaadc; /* 重點色 */
+            --good: #35c759;
+            --danger: #ff3b30;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: ui-sans-serif,system-ui,Segoe UI,Helvetica,Arial,"Noto Sans TC","Apple Color Emoji","Segoe UI Emoji";
+        }
+
+        .wrap {
+            max-width: 1100px;
+            margin: 32px auto 80px;
+            padding: 0 16px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0 0 16px;
+            letter-spacing: .5px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            appearance: none;
+            border: 1px solid var(--grid);
+            background: var(--panel);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            letter-spacing: .5px;
+            transition: .15s ease;
+        }
+
+            .btn:hover {
+                border-color: var(--brand);
+                box-shadow: 0 0 0 2px #2eaadc30 inset;
+            }
+
+            .btn.brand {
+                background: #123241;
+                border-color: #215e78;
+                color: #d9f7ff;
+            }
+
+            .btn.danger {
+                background: #35181a;
+                border-color: #6d2a2f;
+                color: #ffd6d4;
+            }
+
+        /* 表格 */
+        .grid {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+            background: var(--panel);
+            border: 1px solid var(--grid);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+            .grid th, .grid td {
+                border-right: 1px solid var(--grid);
+                border-bottom: 1px solid var(--grid);
+                padding: 10px 12px;
+                vertical-align: top;
+            }
+
+                .grid th:last-child, .grid td:last-child {
+                    border-right: none;
+                }
+
+            .grid tr:last-child td {
+                border-bottom: none;
+            }
+
+            .grid thead th {
+                background: #0f2230;
+                color: #d9f7ff;
+                font-weight: 700;
+                text-align: center;
+                position: sticky;
+                top: 0;
+                z-index: 1;
+            }
+
+        /* 左側時間欄：兩行顯示，不再有 \n */
+        .time-cell {
+            color: #a6d8ea;
+            font-weight: 700;
+            text-align: center;
+            width: 110px;
+            white-space: normal;
+        }
+
+            .time-cell .line {
+                display: block;
+            }
+
+                .time-cell .line + .line {
+                    color: var(--muted);
+                    font-weight: 600;
+                }
+
+        /* 課程卡 */
+        .course {
+            display: block;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #112838;
+            border: 1px solid #2b536a;
+            color: #d9f7ff;
+            line-height: 1.25;
+            margin-bottom: 6px;
+            box-shadow: 0 1px 0 0 #000a inset;
+        }
+
+            .course .name {
+                font-weight: 800;
+            }
+
+            .course .meta {
+                font-size: 12px;
+                color: #9ed3e6;
+                margin-top: 4px;
+            }
+        /* 小螢幕橫向捲動 */
+        .table-wrap {
+            overflow: auto;
+            border-radius: 12px;
+        }
+    </style>
+
+    <!-- QR 掃描器 -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0e1621">
 </head>
 <body>
-  <div id="app">
-    <h1>📅 NCHU 課表</h1>
-    <div id="timetable"></div>
-  </div>
+    <div class="wrap">
+        <h1>中興課表（自填／QR 匯入）</h1>
 
-  <script src="app.js"></script>
+        <div class="toolbar">
+            <button id="btn-scan" class="btn brand">📷 掃描 QR</button>
+            <button id="btn-paste" class="btn">📋 手動貼上 JSON</button>
+            <button id="btn-clear" class="btn danger">🧹 清空</button>
+        </div>
+
+        <div class="table-wrap">
+            <table class="grid" id="table">
+                <thead>
+                    <tr>
+                        <th class="time-cell">時間</th>
+                        <th>星期一</th>
+                        <th>星期二</th>
+                        <th>星期三</th>
+                        <th>星期四</th>
+                        <th>星期五</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 簡易掃描視窗 -->
+    <div id="scanner-modal" style="display:none; position:fixed; inset:0; background:#000a; backdrop-filter:blur(2px); align-items:center; justify-content:center; z-index:10;">
+        <div style="width:min(92vw,520px); background:#0f2230; border:1px solid #2a3a4a; border-radius:12px; padding:12px 12px 6px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <strong>掃描 QR Code</strong>
+                <button id="scanner-close" class="btn danger" style="padding:.4rem .7rem;">關閉</button>
+            </div>
+            <div id="qr-reader" style="width:100%;"></div>
+            <div style="font-size:12px; color:#9ed3e6; margin:8px 2px 2px;">把 QR 放在畫面中央，對焦後自動辨識。</div>
+        </div>
+    </div>
+
+    <script>
+        /********************
+         * 1) 時段資料（週一～週五；每格 1 節）
+         ********************/
+        const TIME_SLOTS = [
+            ["08:10", "09:00"],
+            ["09:10", "10:00"],
+            ["10:10", "11:00"],
+            ["11:10", "12:00"],
+            ["13:10", "14:00"],
+            ["14:10", "15:00"],
+            ["15:10", "16:00"]
+        ]; // 想加減時段，改這裡就好
+
+        const tbody = document.getElementById('tbody');
+
+        // 建表（左時間 + 5 天）
+        function buildTable() {
+            tbody.innerHTML = '';
+            for (const [start, end] of TIME_SLOTS) {
+                const tr = document.createElement('tr');
+
+                const tdTime = document.createElement('td');
+                tdTime.className = 'time-cell';
+                tdTime.innerHTML = `<span class="line">${start}</span><span class="line">${end}</span>`;
+                tr.appendChild(tdTime);
+
+                for (let d = 1; d <= 5; d++) {
+                    const td = document.createElement('td');
+                    td.dataset.day = String(d); // 1=Mon…5=Fri
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        /********************
+         * 2) 資料儲存 / 繪製
+         ********************/
+        const LS_KEY = 'nchu-courses';
+
+        function loadCourses() {
+            try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+            catch { return []; }
+        }
+        function saveCourses(arr) {
+            localStorage.setItem(LS_KEY, JSON.stringify(arr));
+        }
+
+        /** 資料格式（相容校務系統匯出）：
+         *  [{ m: "6810", n: "行動通訊", c: "B22", e: "EE207",
+         *     d: [{ w:2, s:[2,3,4] }]  // w: 星期（1~5），s: 第幾節（從 0 起算）
+         *  }, ...]
+         */
+        function renderCourses() {
+            // 先清空格子
+            document.querySelectorAll('#tbody td:not(.time-cell)').forEach(td => td.innerHTML = '');
+
+            const courses = loadCourses();
+            for (const course of courses) {
+                const { n: name = '課程', m: code = '', e: room = '', d = [] } = course;
+                for (const seg of d) {
+                    const w = Number(seg.w);     // 1 ~ 5
+                    const ss = (seg.s || []).map(v => Number(v));
+
+                    for (const sec of ss) {
+                        // sec 對應到 TIME_SLOTS 的 index
+                        const row = tbody.rows[sec];
+                        if (!row) continue;
+
+                        const td = row.querySelector(`td[data-day="${w}"]`);
+                        if (!td) continue;
+
+                        const div = document.createElement('div');
+                        div.className = 'course';
+                        div.innerHTML = `
+                  <div class="name">${name}</div>
+                  <div class="meta">(${code}) · ${room || '—'}</div>
+                `;
+                        td.appendChild(div);
+                    }
+                }
+            }
+        }
+
+        /********************
+         * 3) 匯入：JSON / QR
+         ********************/
+        // 將任意字串裡的第一個 {...} 物件抓出來
+        function extractFirstJSON(text) {
+            const start = text.indexOf('{');
+            const end = text.lastIndexOf('}');
+            if (start !== -1 && end !== -1 && end > start) {
+                const maybe = text.slice(start, end + 1);
+                try { return JSON.parse(maybe); } catch { }
+            }
+            return null;
+        }
+
+        function importFromJSONString(s) {
+            let obj = null;
+            try {
+                obj = JSON.parse(s);
+            } catch {
+                // 若不是純 JSON，嘗試從字串取第一段 {...}
+                obj = extractFirstJSON(s);
+            }
+            if (!obj) throw new Error('無法解析 JSON 內容');
+
+            // 支援單一物件或陣列
+            const arr = Array.isArray(obj) ? obj : [obj];
+            saveCourses(arr);
+            buildTable(); renderCourses();
+            alert('課表已匯入！');
+        }
+
+        // 手動貼上
+        document.getElementById('btn-paste').addEventListener('click', async () => {
+            const s = prompt('請貼上 JSON：');
+            if (!s) return;
+            try { importFromJSONString(s); }
+            catch (err) { alert('匯入失敗：' + err.message); }
+        });
+
+        // 清空
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            if (confirm('確定要清空課表嗎？')) {
+                saveCourses([]);
+                buildTable(); renderCourses();
+            }
+        });
+
+        /********************
+         * 4) QR 掃描器
+         ********************/
+        const modal = document.getElementById('scanner-modal');
+        const btnScan = document.getElementById('btn-scan');
+        const btnClose = document.getElementById('scanner-close');
+        let qrReader = null;
+
+        btnScan.addEventListener('click', async () => {
+            modal.style.display = 'flex';
+            if (!qrReader) {
+                qrReader = new Html5Qrcode("qr-reader");
+            }
+            const config = { fps: 10, qrbox: { width: 260, height: 260 } };
+            qrReader.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    // 拿到字串 → 嘗試匯入
+                    try {
+                        importFromJSONString(decodedText);
+                        stopScanner();
+                    } catch (err) {
+                        console.warn('QR 內容：', decodedText);
+                        alert('無法解析此 QR 內容，已列印在 console');
+                    }
+                },
+                (err) => { /* ignore scan failure */ }
+            ).catch(e => {
+                alert('啟用相機失敗：' + e);
+            });
+        });
+
+        function stopScanner() {
+            if (qrReader) {
+                qrReader.stop().catch(() => { }).finally(() => {
+                    modal.style.display = 'none';
+                    document.getElementById('qr-reader').innerHTML = ''; // 清空畫面
+                    qrReader = null;
+                });
+            } else {
+                modal.style.display = 'none';
+            }
+        }
+        btnClose.addEventListener('click', stopScanner);
+        modal.addEventListener('click', (e) => { if (e.target === modal) stopScanner(); });
+
+        /********************
+         * 5) 啟動
+         ********************/
+        buildTable();
+        renderCourses();
+
+        // 註冊 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(console.warn);
+            });
+        }
+    </script>
 </body>
 </html>
