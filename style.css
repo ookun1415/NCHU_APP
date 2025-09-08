@@ -38,8 +38,9 @@ td {
         color: #2a6;
     }
 
-/* 讓左側時間欄位顯示兩行更漂亮 */
+/* 讓字串中的換行字元顯示成斷行（關鍵） */
 th.time {
     width: 90px;
     line-height: 1.2;
+    white-space: pre-line; /* <— 這行一定要有 */
 }
