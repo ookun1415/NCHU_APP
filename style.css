@@ -41,6 +41,6 @@ td {
 /* 讓字串中的換行字元顯示成斷行（關鍵） */
 th.time {
     width: 90px;
-    line-height: 1.2;
-    white-space: pre-line; /* <— 這行一定要有 */
+    line-height: 1.3;
+    white-space: normal; /* <— 改成 normal，配合 <br> 強制換行 */
 }
