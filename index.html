@@ -56,10 +56,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>中興課表（自填 / QR 匯入）</h1>
+        <h1>中興課表（QR 匯入）</h1>
         <div class="button-group">
             <button id="scanQR">📷 掃描 QR</button>
-            <button id="pasteJSON">📋 手動貼上 JSON</button>
             <button id="clear">🗑 清空</button>
         </div>
         <div id="timetable"></div>
@@ -116,7 +115,16 @@
             if (code) {
                 alert("✅ QR Code 內容：\n" + code.data);
                 console.log("QR Code:", code.data);
-                // TODO: 在這裡解析課表 JSON，填到 timetable
+
+                // 🔥 把解析出來的 JSON 存到 localStorage，並刷新課表
+                try {
+                    const parsed = JSON.parse(code.data);
+                    localStorage.setItem("schedule", JSON.stringify(parsed));
+                    location.reload();
+                } catch (e) {
+                    alert("❌ QR Code 不是有效的 JSON");
+                }
+
                 modal.style.display = "none";
                 stopCamera();
             } else {
@@ -136,6 +144,13 @@
                 video.srcObject = null;
             }
         }
+
+        // 🗑 清空按鈕
+        document.getElementById("clear").addEventListener("click", () => {
+            localStorage.removeItem("schedule");
+            alert("✅ 課表已清空");
+            location.reload();
+        });
     </script>
 </body>
 </html>
