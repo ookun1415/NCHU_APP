@@ -1,123 +1,204 @@
-body {
-    font-family: "Microsoft JhengHei", sans-serif;
-    background: #f5f7fa;
+:root {
+    --bg: #0f172a;
+    --panel: #111827;
+    --muted: #94a3b8;
+    --line: #2a2f3a;
+    --primary: #228be6; /* 課程藍色 */
+    --danger: #ef4444;
+    --text: #e5f4ff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
     margin: 0;
-    padding: 20px;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI","PingFang TC","Noto Sans TC",system-ui,-apple-system;
 }
 
-h1 {
-    text-align: center;
+.topbar {
+    max-width: 1200px;
+    margin: 24px auto 8px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.button-group {
-    text-align: center;
-    margin-bottom: 15px;
+    .topbar h1 {
+        font-size: 28px;
+        margin: 0;
+    }
+
+.actions {
+    display: flex;
+    gap: 10px;
 }
 
-button {
-    margin: 5px;
-    padding: 10px 16px;
-    font-size: 16px;
+.btn {
+    appearance: none;
     border: none;
-    border-radius: 6px;
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: #1f2937;
+    color: #fff;
     cursor: pointer;
 }
 
-#scanQR {
-    background: #0d6efd;
-    color: #fff;
+    .btn:hover {
+        filter: brightness(1.1);
+    }
+
+    .btn.primary {
+        background: var(--primary);
+    }
+
+    .btn.danger {
+        background: var(--danger);
+    }
+
+    .btn.ghost {
+        background: transparent;
+        border: 1px solid var(--line);
+    }
+
+    .btn.lg {
+        padding: 14px 22px;
+        font-size: 18px;
+    }
+
+.hint {
+    max-width: 1200px;
+    margin: 6px auto 16px;
+    padding: 0 16px;
+    color: var(--muted);
 }
 
-#clear {
-    background: #dc3545;
-    color: #fff;
+.grid {
+    max-width: 1200px;
+    margin: 0 auto 48px;
+    padding: 0 16px;
 }
 
-#timetable {
-    margin: auto;
-    max-width: 900px;
+.row {
+    display: grid;
+    grid-template-columns: 120px repeat(5, 1fr);
 }
 
-table.grid {
-    width: 100%;
-    border-collapse: collapse;
+.cell {
+    border: 1px solid var(--line);
+    min-height: 80px;
+    padding: 10px;
+    background: var(--panel);
+    overflow: hidden;
 }
 
-    table.grid th, table.grid td {
-        border: 1px solid #ccc;
+    .cell.header {
+        background: #0b1220;
+        font-weight: 700;
         text-align: center;
-        vertical-align: middle;
-        height: 70px;
     }
 
-.time-cell {
-    background: #e9ecef;
-    font-weight: bold;
-}
+    .cell.time {
+        background: #0b1220;
+        color: #d0e7ff;
+        white-space: pre-line; /* 顯示換行 */
+        font-weight: 600;
+        text-align: center;
+    }
 
-.course {
-    display: block;
-    padding: 8px 10px;
+.course-card {
+    background: var(--primary);
+    color: #fff;
     border-radius: 10px;
-    background: #0d6efd; /* 藍色背景 */
-    border: 1px solid #0b5ed7;
-    color: #ffffff; /* 白色字 */
-    line-height: 1.25;
+    padding: 8px 10px;
     margin-bottom: 6px;
-    box-shadow: 0 1px 0 0 #0003 inset;
+    box-shadow: 0 4px 16px rgba(0,0,0,.22);
 }
 
-    .course .name {
-        font-weight: 800;
-    }
+.course-name {
+    font-weight: 800;
+    letter-spacing: .5px;
+}
 
-    .course .meta {
-        font-size: 12px;
-        color: #dbe9ff; /* 淡藍色文字 */
-        margin-top: 4px;
-    }
+.course-meta {
+    opacity: .9;
+    font-size: 12px;
+    margin-top: 3px;
+}
 
-/* 全螢幕 QR 模式 */
-#qrModal {
+/* Modal */
+.modal {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+}
+
+    .modal.hidden {
+        display: none;
+    }
+
+.modal-content {
+    width: min(980px, 92vw);
+    background: #0e1626;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #22314a;
+    box-shadow: 0 20px 80px rgba(0,0,0,.55);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #1f2b42;
+}
+
+/* Camera fullscreen effect */
+.camera-wrap {
+    position: relative;
+    height: 68vh;
+    background: #000;
+    overflow: hidden;
+}
+
+#cam {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.95);
-    display: none;
-    flex-direction: column;
+    object-fit: cover;
+}
+
+.camera-controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 20px;
+    display: flex;
     justify-content: center;
-    align-items: center;
-    z-index: 1000;
 }
 
-    #qrModal video {
-        width: 100%;
-        max-height: 80%;
-        background: black;
-    }
-
-    #qrModal button {
-        margin: 10px;
-        padding: 12px 20px;
-        font-size: 18px;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-    }
-
-#captureBtn {
-    background: #28a745;
-    color: white;
+.qr-hint {
+    padding: 12px 16px;
+    border-top: 1px dashed #2a3c5f;
+    color: #bcd2f5;
 }
 
-#closeQR {
-    background: #dc3545;
-    color: white;
+.qr-note {
+    padding: 8px 16px 16px;
+    color: #93a8c7;
 }
 
-#cameraStatus {
-    color: orange;
-    margin-top: 10px;
+.hidden {
+    display: none !important;
 }

@@ -2,288 +2,71 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>中興課表（自填／QR 匯入）</title>
-
-    <!-- PWA 基本 -->
-    <meta name="theme-color" content="#0b1220" />
+    <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="apple-touch-icon" href="icons/icon-192.png" />
-
-    <style>
-        :root {
-            --bg: #0b1220;
-            --panel: #121a2b;
-            --grid: #2c3a55;
-            --text: #bfe3ff;
-            --muted: #8fb3d9;
-            --accent: #2e7bd9;
-            --accent-strong: #1f5fb1;
-            --danger: #ff5c5c;
-            --success: #1db954;
-            --card-bg: #103a6e; /* 課程卡片藍色 */
-            --card-border: #2f79d3;
-        }
-
-        * {
-            box-sizing: border-box
-        }
-
-        html, body {
-            height: 100%
-        }
-
-        body {
-            margin: 0;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans TC", Arial, "Apple Color Emoji", "Segoe UI Emoji";
-            background: var(--bg);
-            color: var(--text);
-        }
-
-        .wrap {
-            max-width: 1100px;
-            margin: 32px auto;
-            padding: 0 16px
-        }
-
-        h1 {
-            margin: 0 0 16px;
-            font-weight: 700;
-            letter-spacing: .02em
-        }
-
-        .toolbar {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 16px
-        }
-
-        .btn {
-            appearance: none;
-            border: 1px solid var(--grid);
-            background: var(--panel);
-            color: var(--text);
-            padding: 10px 14px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: .15s;
-        }
-
-            .btn:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 6px 18px rgba(0,0,0,.25)
-            }
-
-        .btn-primary {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: #fff
-        }
-
-            .btn-primary:hover {
-                background: var(--accent-strong)
-            }
-
-        .btn-danger {
-            background: transparent;
-            border-color: var(--danger);
-            color: #ffb3b3
-        }
-
-            .btn-danger:hover {
-                background: rgba(255,92,92,.1)
-            }
-
-        .note {
-            color: var(--muted);
-            font-size: 14px;
-            margin-top: -6px;
-            margin-bottom: 14px
-        }
-
-        /* 課表 grid */
-        .grid {
-            width: 100%;
-            border: 1px solid var(--grid);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .row {
-            display: grid;
-            grid-template-columns: 120px repeat(5,1fr)
-        }
-
-        .cell {
-            min-height: 84px;
-            border-right: 1px solid var(--grid);
-            border-bottom: 1px solid var(--grid);
-            padding: 10px;
-            position: relative;
-            background: var(--panel);
-        }
-
-        .row:first-child .cell {
-            background: #142038
-        }
-
-        .row .cell:first-child {
-            background: #142038
-        }
-
-        .header {
-            font-weight: 700;
-            color: #d4ecff
-        }
-
-        .time {
-            white-space: pre-line;
-            color: #9fc7ef
-        }
-
-        /* 課程卡片（藍色） */
-        .course-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            color: #dff0ff;
-            border-radius: 10px;
-            padding: 8px 10px;
-            line-height: 1.35;
-            box-shadow: 0 6px 16px rgba(0,30,80,.25);
-            position: relative;
-        }
-
-        .course-name {
-            font-weight: 700
-        }
-
-        .course-meta {
-            font-size: 12px;
-            color: #b7d6ff;
-            margin-top: 2px
-        }
-
-        /* 全螢幕 QR Modal */
-        .modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,.75);
-            display: none;
-            place-items: center;
-            z-index: 1000;
-        }
-
-            .modal.open {
-                display: grid
-            }
-
-        .scanner {
-            width: min(900px, 96vw);
-            height: min(70vh, 520px);
-            background: #000;
-            border-radius: 14px;
-            overflow: hidden;
-            display: grid;
-            grid-template-rows: 1fr auto;
-            box-shadow: 0 12px 40px rgba(0,0,0,.5)
-        }
-
-        .view {
-            position: relative;
-            background: #000;
-            display: grid;
-            place-items: center
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: #000
-        }
-
-        canvas {
-            display: none
-        }
-
-        .hint {
-            position: absolute;
-            inset: auto 16px 16px 16px;
-            color: #fff;
-            opacity: .9;
-            font-size: 14px;
-            text-align: center;
-            text-shadow: 0 1px 2px rgba(0,0,0,.6)
-        }
-
-        .ctrl {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-            padding: 10px;
-            background: #0b0b0b;
-            border-top: 1px solid #111
-        }
-
-        .btn-ghost {
-            background: #1c1c1c;
-            border: 1px solid #333;
-            color: #eaeaea
-        }
-
-            .btn-ghost:hover {
-                background: #262626
-            }
-
-        .file-fallback {
-            color: #ddd;
-            font-size: 13px;
-            margin-left: 12px
-        }
-    </style>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 <body>
-    <div class="wrap">
+    <header class="topbar">
         <h1>中興課表（自填／QR 匯入）</h1>
-
-        <div class="toolbar">
-            <button id="btnScan" class="btn btn-primary">掃描 QR</button>
-            <button id="btnClear" class="btn btn-danger">清空</button>
+        <div class="actions">
+            <button id="btnScan" class="btn primary">掃描 QR</button>
+            <button id="btnClear" class="btn danger">清空</button>
         </div>
-        <div class="note">提示：第一次打開會是空白。掃描學校課表 QR 會自動匯入；清空會清除本機資料。</div>
+    </header>
 
-        <!-- 課表 -->
-        <div id="grid" class="grid"></div>
-    </div>
+    <p class="hint">
+        提示：第一次打開會是空白（僅表格）．掃描學校課表 QR 會自動匯入；「清空」會移除本機資料。
+    </p>
 
-    <!-- 全螢幕相機 Modal -->
-    <div id="qrModal" class="modal" aria-hidden="true">
-        <div class="scanner">
-            <div class="view">
-                <video id="cam" playsinline></video>
-                <canvas id="qrCanvas"></canvas>
-                <div id="qrHint" class="hint">把 QR 放在畫面中央，對焦後自動辨識</div>
+    <section id="grid" class="grid"></section>
+
+    <!-- 掃描器 Modal -->
+    <div id="qrModal" class="modal hidden" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>掃描 QR Code</h2>
+                <button id="btnClose" class="btn ghost">關閉</button>
             </div>
-            <div class="ctrl">
-                <button id="btnCapture" class="btn btn-primary">拍照辨識</button>
-                <button id="btnClose" class="btn btn-ghost">關閉</button>
-                <label class="file-fallback">
-                    若無法啟用相機，可改用
-                    <input id="fileInput" type="file" accept="image/*" style="display:none">
-                    <button id="btnPick" class="btn btn-ghost" type="button">上傳圖片</button>
+
+            <div class="camera-wrap">
+                <video id="cam" playsinline autoplay muted></video>
+                <canvas id="qrCanvas" class="hidden"></canvas>
+                <div class="camera-controls">
+                    <button id="btnCapture" class="btn primary lg">拍照辨識</button>
+                </div>
+            </div>
+
+            <div id="qrHint" class="qr-hint">
+                相機無法啟用（可能未授權，或非 Safari）。<br />
+                請確認：使用 <b>Safari</b> 打開本頁，並已允許相機；<br />
+                或直接 <b>上傳含 QR 的圖片</b> 辨識：
+                <label class="btn">
+                    <input id="fileInput" type="file" accept="image/*" hidden />
+                    選擇檔案
                 </label>
+                <span id="fileName">未選擇任何檔案</span>
             </div>
+
+            <p class="qr-note">
+                把 QR 放在畫面中央，對焦後再按「拍照辨識」。若無法啟用相機、會提供「上傳圖片」備援。
+            </p>
         </div>
     </div>
 
+    <!-- jsQR（QR 解碼） -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script src="app.js"></script>
 
     <script>
-        // 註冊 service worker（可選）
+        // PWA：註冊 Service Worker（可離線）
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').catch(() => { });
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
         }
     </script>
 </body>
