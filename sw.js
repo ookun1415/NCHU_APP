@@ -1,51 +1,25 @@
-// PWA 快取（記得每次有大改就把版本 +1）
-const CACHE_NAME = 'nchu-schedule-v4';
+// 超輕量快取，首次載入就能離線開啟基本頁面
+const CACHE = "nchu-pwa-v1";
 const ASSETS = [
-    './',
-    './index.html',
-    './manifest.json'
+    "./",
+    "./index.html",
+    "./app.js",
+    // 若你把 CSS、icons、manifest.json 分開，記得加上
+    // "./style.css",
+    // "./manifest.json",
+    // "./icons/icon-192.png",
 ];
 
-// 安裝：預先快取核心檔
-self.addEventListener('install', (event) => {
-    event.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
-    self.skipWaiting();
+self.addEventListener("install", (e) => {
+    e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
 });
-
-// 啟用：清掉舊版快取
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then(keys =>
-            Promise.all(keys.map(k => (k === CACHE_NAME ? null : caches.delete(k))))
-        ).then(() => self.clients.claim())
+self.addEventListener("activate", (e) => {
+    e.waitUntil(
+        caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE && caches.delete(k))))
     );
 });
-
-// 取用策略：HTML 走「網路優先」，其他走「快取優先」
-self.addEventListener('fetch', (event) => {
-    const req = event.request;
-    if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
-
-    const accept = req.headers.get('accept') || '';
-    if (accept.includes('text/html')) {
-        // Network-first for HTML（避免吃到舊 index）
-        event.respondWith(
-            fetch(req).then(res => {
-                const copy = res.clone();
-                caches.open(CACHE_NAME).then(c => c.put(req, copy));
-                return res;
-            }).catch(() => caches.match(req))
-        );
-    } else {
-        // Cache-first for static
-        event.respondWith(
-            caches.match(req).then(cached => cached || fetch(req).then(res => {
-                if (res && res.status === 200) {
-                    const copy = res.clone();
-                    caches.open(CACHE_NAME).then(c => c.put(req, copy));
-                }
-                return res;
-            }).catch(() => caches.match('./index.html')))
-        );
-    }
+self.addEventListener("fetch", (e) => {
+    e.respondWith(
+        caches.match(e.request).then(res => res || fetch(e.request).catch(() => caches.match("./index.html")))
+    );
 });

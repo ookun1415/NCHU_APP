@@ -1,33 +1,290 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中興課表 (QR 匯入)</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>中興課表（自填／QR 匯入）</title>
+
+    <!-- PWA 基本 -->
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+    <style>
+        :root {
+            --bg: #0b1220;
+            --panel: #121a2b;
+            --grid: #2c3a55;
+            --text: #bfe3ff;
+            --muted: #8fb3d9;
+            --accent: #2e7bd9;
+            --accent-strong: #1f5fb1;
+            --danger: #ff5c5c;
+            --success: #1db954;
+            --card-bg: #103a6e; /* 課程卡片藍色 */
+            --card-border: #2f79d3;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html, body {
+            height: 100%
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans TC", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .wrap {
+            max-width: 1100px;
+            margin: 32px auto;
+            padding: 0 16px
+        }
+
+        h1 {
+            margin: 0 0 16px;
+            font-weight: 700;
+            letter-spacing: .02em
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px
+        }
+
+        .btn {
+            appearance: none;
+            border: 1px solid var(--grid);
+            background: var(--panel);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: .15s;
+        }
+
+            .btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 18px rgba(0,0,0,.25)
+            }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff
+        }
+
+            .btn-primary:hover {
+                background: var(--accent-strong)
+            }
+
+        .btn-danger {
+            background: transparent;
+            border-color: var(--danger);
+            color: #ffb3b3
+        }
+
+            .btn-danger:hover {
+                background: rgba(255,92,92,.1)
+            }
+
+        .note {
+            color: var(--muted);
+            font-size: 14px;
+            margin-top: -6px;
+            margin-bottom: 14px
+        }
+
+        /* 課表 grid */
+        .grid {
+            width: 100%;
+            border: 1px solid var(--grid);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 120px repeat(5,1fr)
+        }
+
+        .cell {
+            min-height: 84px;
+            border-right: 1px solid var(--grid);
+            border-bottom: 1px solid var(--grid);
+            padding: 10px;
+            position: relative;
+            background: var(--panel);
+        }
+
+        .row:first-child .cell {
+            background: #142038
+        }
+
+        .row .cell:first-child {
+            background: #142038
+        }
+
+        .header {
+            font-weight: 700;
+            color: #d4ecff
+        }
+
+        .time {
+            white-space: pre-line;
+            color: #9fc7ef
+        }
+
+        /* 課程卡片（藍色） */
+        .course-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: #dff0ff;
+            border-radius: 10px;
+            padding: 8px 10px;
+            line-height: 1.35;
+            box-shadow: 0 6px 16px rgba(0,30,80,.25);
+            position: relative;
+        }
+
+        .course-name {
+            font-weight: 700
+        }
+
+        .course-meta {
+            font-size: 12px;
+            color: #b7d6ff;
+            margin-top: 2px
+        }
+
+        /* 全螢幕 QR Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.75);
+            display: none;
+            place-items: center;
+            z-index: 1000;
+        }
+
+            .modal.open {
+                display: grid
+            }
+
+        .scanner {
+            width: min(900px, 96vw);
+            height: min(70vh, 520px);
+            background: #000;
+            border-radius: 14px;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            box-shadow: 0 12px 40px rgba(0,0,0,.5)
+        }
+
+        .view {
+            position: relative;
+            background: #000;
+            display: grid;
+            place-items: center
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000
+        }
+
+        canvas {
+            display: none
+        }
+
+        .hint {
+            position: absolute;
+            inset: auto 16px 16px 16px;
+            color: #fff;
+            opacity: .9;
+            font-size: 14px;
+            text-align: center;
+            text-shadow: 0 1px 2px rgba(0,0,0,.6)
+        }
+
+        .ctrl {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            background: #0b0b0b;
+            border-top: 1px solid #111
+        }
+
+        .btn-ghost {
+            background: #1c1c1c;
+            border: 1px solid #333;
+            color: #eaeaea
+        }
+
+            .btn-ghost:hover {
+                background: #262626
+            }
+
+        .file-fallback {
+            color: #ddd;
+            font-size: 13px;
+            margin-left: 12px
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>中興課表（QR 匯入）</h1>
-        <div class="button-group">
-            <button id="scanQR">📷 掃描 QR</button>
-            <button id="clear">🗑 清空</button>
+    <div class="wrap">
+        <h1>中興課表（自填／QR 匯入）</h1>
+
+        <div class="toolbar">
+            <button id="btnScan" class="btn btn-primary">掃描 QR</button>
+            <button id="btnClear" class="btn btn-danger">清空</button>
         </div>
-        <div id="timetable"></div>
+        <div class="note">提示：第一次打開會是空白。掃描學校課表 QR 會自動匯入；清空會清除本機資料。</div>
+
+        <!-- 課表 -->
+        <div id="grid" class="grid"></div>
     </div>
 
-    <!-- 📷 全螢幕 QR 掃描模式 -->
-    <div id="qrModal">
-        <video id="video" autoplay playsinline></video>
-        <canvas id="canvas" hidden></canvas>
-        <p id="cameraStatus"></p>
-        <div>
-            <button id="captureBtn">📸 拍照辨識</button>
-            <button id="closeQR">❌ 關閉</button>
+    <!-- 全螢幕相機 Modal -->
+    <div id="qrModal" class="modal" aria-hidden="true">
+        <div class="scanner">
+            <div class="view">
+                <video id="cam" playsinline></video>
+                <canvas id="qrCanvas"></canvas>
+                <div id="qrHint" class="hint">把 QR 放在畫面中央，對焦後自動辨識</div>
+            </div>
+            <div class="ctrl">
+                <button id="btnCapture" class="btn btn-primary">拍照辨識</button>
+                <button id="btnClose" class="btn btn-ghost">關閉</button>
+                <label class="file-fallback">
+                    若無法啟用相機，可改用
+                    <input id="fileInput" type="file" accept="image/*" style="display:none">
+                    <button id="btnPick" class="btn btn-ghost" type="button">上傳圖片</button>
+                </label>
+            </div>
         </div>
     </div>
 
     <script src="app.js"></script>
+
+    <script>
+        // 註冊 service worker（可選）
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(() => { });
+        }
+    </script>
 </body>
 </html>
