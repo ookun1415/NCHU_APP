@@ -6,12 +6,11 @@ const TIMES = [
     "13:10-14:00", "14:10-15:00", "15:10-16:00", "16:10-17:00",
     "17:10-18:00", "18:20-19:10", "19:15-20:05", "20:10-21:00", "21:05-21:55"
 ];
-// 顯示到第幾節（索引從 0 起算；6 = 顯示 0..5，也就是 08:10 ~ 16:00）
-const VISIBLE_SLOTS = 6;
+const VISIBLE_SLOTS = TIMES.length; // 顯示所有節次
 const WEEKS = [1, 2, 3, 4, 5];
 const STORAGE_KEY = "nchu-schedule-v1";
 
-let schedule = loadSchedule(); // 結構：{ "1-0":[{name,teacher,room}, ...], ... }
+let schedule = loadSchedule(); // { "1-0":[{name,teacher,room}, ...], ... }
 
 /*********************
  * DOM
@@ -38,7 +37,7 @@ const confirmContent = document.getElementById("confirmContent");
 const btnCloseConfirm = document.getElementById("btnCloseConfirm");
 const btnCancelImport = document.getElementById("btnCancelImport");
 const btnImport = document.getElementById("btnImport");
-let _pendingParsedJSON = null; // 暫存解析後 JSON（等待按下匯入）
+let _pendingParsedJSON = null;
 
 /*********************
  * 啟動：建立表格骨架 → 渲染
@@ -57,13 +56,18 @@ btnCloseConfirm.addEventListener("click", () => hideConfirm());
 btnCancelImport.addEventListener("click", () => hideConfirm());
 btnImport.addEventListener("click", () => {
     if (!_pendingParsedJSON) return;
-    // 將 pending JSON 寫入課表
-    importNchuArray(_pendingParsedJSON);
+    const { placed, ignored, maxSlot } = importNchuFlexible(_pendingParsedJSON);
     saveSchedule();
     render();
     hideConfirm();
     closeScanner();
-    alert("匯入完成！");
+
+    let msg = `匯入完成！放入 ${placed} 筆`;
+    if (ignored) msg += `，忽略 ${ignored} 筆（結構不符或超出星期/節次）`;
+    if (maxSlot >= VISIBLE_SLOTS) {
+        msg += `。\n注意：資料包含第 ${maxSlot + 1} 節，但目前畫面只顯示 ${VISIBLE_SLOTS} 節，可調整 app.js 的 TIMES/顯示節數。`;
+    }
+    alert(msg);
     _pendingParsedJSON = null;
 });
 
@@ -225,30 +229,25 @@ function onImagePicked(e) {
  *********************/
 function handleQrText(text) {
     const cleaned = text.trim();
-    // 嘗試 JSON pretty print
-    let pretty = cleaned;
-    let parsed = null;
+    console.log("[QR raw]", cleaned);
 
+    // 嘗試 JSON 解析（支援 URL-encoded）
+    let parsed = null;
     try {
-        const maybeDecoded = decodeURIComponentSafe(cleaned);
-        parsed = JSON.parse(maybeDecoded);
+        parsed = JSON.parse(decodeURIComponentSafe(cleaned));
     } catch {
         try { parsed = JSON.parse(cleaned); } catch { }
     }
 
+    // 顯示確認視窗（若能解析就美化）
     if (parsed) {
-        try {
-            pretty = JSON.stringify(parsed, null, 2);
-            _pendingParsedJSON = parsed; // 暫存，等待使用者按「匯入」
-        } catch {
-            _pendingParsedJSON = null;
-        }
+        _pendingParsedJSON = parsed;
+        const pretty = JSON.stringify(parsed, null, 2);
+        showConfirm(pretty, true);
     } else {
-        // 不是 JSON：仍然顯示原文，提示使用者
         _pendingParsedJSON = null;
+        showConfirm(cleaned, false); // 不是 JSON 也讓使用者看見原文
     }
-
-    showConfirm(pretty, !!parsed);
 }
 
 /*********************
@@ -257,10 +256,9 @@ function handleQrText(text) {
 function showConfirm(contentText, isJson) {
     confirmContent.textContent = contentText;
     confirmModal.classList.remove("hidden");
-
-    // 可匯入 = 已解析成 JSON；否則只能取消
+    const btnImport = document.getElementById("btnImport");
     btnImport.disabled = !isJson;
-    btnImport.title = isJson ? "" : "無法解析為 JSON，請檢查內容格式";
+    btnImport.title = isJson ? "" : "不是有效 JSON，無法匯入";
 }
 function hideConfirm() {
     confirmModal.classList.add("hidden");
@@ -269,37 +267,104 @@ function hideConfirm() {
 }
 
 /*********************
- * 將中興 JSON 陣列轉成內部結構
- * 期望格式：
- * [
- *  {"m":"6810","n":"行動通訊","e":"EE207","d":{"w":2,"s":[2,3,4]}},
- *  ...
- * ]
- * d.w：1..5（星期一..五）；d.s：節次（1 起算）
+ * 通用：把不同格式的 NCHU 課表轉成內部 schedule
  *********************/
-function importNchuArray(arr) {
-    if (!Array.isArray(arr)) {
-        alert("QR 內容不是期望的課程清單（陣列）。");
-        return;
+function importNchuFlexible(source) {
+    // 1) 支援 { courses:[...] } 或直接陣列
+    const arr = Array.isArray(source) ? source
+        : (Array.isArray(source?.courses) ? source.courses : null);
+    if (!arr) {
+        console.warn("[import] 非陣列/無 courses，給的資料：", source);
+        return { placed: 0, ignored: 0, maxSlot: -1 };
     }
-    const next = {};
-    arr.forEach(item => {
-        const name = item?.n || item?.name || "";
-        const teacher = item?.teacher || ""; // 若 QR 無此欄位，可保持空白
-        const room = item?.e || item?.room || "";
-        const d = item?.d || {};
-        const w = parseInt(d?.w, 10);           // 1..5
-        const slots = Array.isArray(d?.s) ? d.s : [];
-        if (!w || !slots.length) return;
 
-        slots.forEach(s1 => {
-            const slot0 = Number(s1) - 1;         // 轉 0-based
-            const key = `${w}-${slot0}`;
+    const next = {};
+    let placed = 0, ignored = 0, maxSlot = -1;
+
+    arr.forEach((raw, idx) => {
+        // 名稱/教師/教室（盡量取到）
+        const name = raw?.n || raw?.name || raw?.title || "";
+        const teacher = raw?.t || raw?.teacher || "";
+        const room = raw?.e || raw?.room || raw?.loc || "";
+
+        // 星期
+        const w = normalizeWeek(raw);
+        // 節次列表（0-based）
+        const slotList0 = normalizeSlots(raw);
+
+        if (!w || !slotList0.length) {
+            ignored++;
+            console.log(`[import] 忽略第 ${idx} 筆：星期或節次無效`, raw);
+            return;
+        }
+
+        slotList0.forEach(s0 => {
+            maxSlot = Math.max(maxSlot, s0);
+            const key = `${w}-${s0}`;
             if (!next[key]) next[key] = [];
             next[key].push({ name, teacher, room });
+            placed++;
         });
     });
+
     schedule = next;
+    console.log(`[import] 放入 ${placed} 筆，忽略 ${ignored} 筆；最大節索引 s0=${maxSlot}`);
+    return { placed, ignored, maxSlot };
+}
+
+/* 解析星期：支援 d.w、w、week（1..5） */
+function normalizeWeek(raw) {
+    const d = raw?.d || {};
+    const w = Number(raw?.w ?? raw?.week ?? d?.w);
+    if (Number.isFinite(w) && w >= 1 && w <= 5) return w;
+    return 0;
+}
+
+/* 解析節次：支援
+   - d.s / s: [2,3,4] 或 [1,2,3]（自動認 1-based → 0-based）
+   - d.r: [2,4]（區間）
+   - periods: "2-4" / "3" */
+function normalizeSlots(raw) {
+    const d = raw?.d || {};
+    let slots = [];
+
+    // 1) 陣列 s
+    let arr = raw?.s || d?.s;
+    if (Array.isArray(arr) && arr.length) {
+        slots = arr.map(Number).filter(n => Number.isFinite(n));
+    }
+
+    // 2) 區間 r: [start, end]
+    if (!slots.length && Array.isArray(d?.r) && d.r.length === 2) {
+        const start = Number(d.r[0]), end = Number(d.r[1]);
+        if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+            for (let p = start; p <= end; p++) slots.push(p);
+        }
+    }
+
+    // 3) periods: "2-4" 或 "3"
+    if (!slots.length && typeof raw?.periods === "string") {
+        const m = raw.periods.match(/^(\d+)\s*-\s*(\d+)$/);
+        if (m) {
+            const a = Number(m[1]), b = Number(m[2]);
+            if (Number.isFinite(a) && Number.isFinite(b) && b >= a) {
+                for (let p = a; p <= b; p++) slots.push(p);
+            }
+        } else {
+            const one = Number(raw.periods);
+            if (Number.isFinite(one)) slots.push(one);
+        }
+    }
+
+    // 0-based 調整：如果最小值 >=1，就當作 1-based
+    if (slots.length) {
+        const min = Math.min(...slots);
+        const zeroBased = min >= 1 ? slots.map(x => x - 1) : slots; // 已是 0-based 就不動
+        // 範圍過濾（避免超出 TIMES）
+        return zeroBased.filter(s0 => s0 >= 0 && s0 < TIMES.length);
+    }
+
+    return [];
 }
 
 /*********************
