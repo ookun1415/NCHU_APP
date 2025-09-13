@@ -6,27 +6,21 @@ const TIMES = [
     "13:10-14:00", "14:10-15:00", "15:10-16:00", "16:10-17:00",
     "17:10-18:00", "18:20-19:10", "19:15-20:05", "20:10-21:00", "21:05-21:55"
 ];
-// 顯示幾節就畫幾節（你目前到 16:00，可把 TIMES 截斷）
-const VISIBLE_SLOTS = 6; // 08:10 ~ 16:00，想多顯示就改這個數字
-
-const WEEKS = [1, 2, 3, 4, 5]; // 一到五
+// 顯示到第幾節（索引從 0 起算；6 = 顯示 0..5，也就是 08:10 ~ 16:00）
+const VISIBLE_SLOTS = 6;
+const WEEKS = [1, 2, 3, 4, 5];
 const STORAGE_KEY = "nchu-schedule-v1";
 
-// 課程顏色（藍）
-const COURSE_BG = "rgba(59,130,246,0.16)";
-const COURSE_BORDER = "rgba(59,130,246,0.5)";
-const COURSE_TEXT = "rgb(147,197,253)";
-
-let schedule = loadSchedule(); // { "1-0":[{...}], "1-1":[...], ... }
+let schedule = loadSchedule(); // 結構：{ "1-0":[{name,teacher,room}, ...], ... }
 
 /*********************
- * 元件
+ * DOM
  *********************/
 const tableWrap = document.getElementById("tableWrap");
 const btnScan = document.getElementById("btnScan");
 const btnClear = document.getElementById("btnClear");
 
-// scanner
+// 掃描器
 const scanner = document.getElementById("scanner");
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
@@ -36,11 +30,18 @@ const btnCapture = document.getElementById("btnCapture");
 const btnUpload = document.getElementById("btnUpload");
 const filePicker = document.getElementById("filePicker");
 const camHint = document.getElementById("camHint");
-
 let mediaStream = null;
 
+// 確認匯入對話框
+const confirmModal = document.getElementById("confirmModal");
+const confirmContent = document.getElementById("confirmContent");
+const btnCloseConfirm = document.getElementById("btnCloseConfirm");
+const btnCancelImport = document.getElementById("btnCancelImport");
+const btnImport = document.getElementById("btnImport");
+let _pendingParsedJSON = null; // 暫存解析後 JSON（等待按下匯入）
+
 /*********************
- * 啟動
+ * 啟動：建立表格骨架 → 渲染
  *********************/
 buildGridSkeleton();
 render();
@@ -52,15 +53,28 @@ btnCapture.addEventListener("click", captureAndDecode);
 btnUpload.addEventListener("click", () => filePicker.click());
 filePicker.addEventListener("change", onImagePicked);
 
+btnCloseConfirm.addEventListener("click", () => hideConfirm());
+btnCancelImport.addEventListener("click", () => hideConfirm());
+btnImport.addEventListener("click", () => {
+    if (!_pendingParsedJSON) return;
+    // 將 pending JSON 寫入課表
+    importNchuArray(_pendingParsedJSON);
+    saveSchedule();
+    render();
+    hideConfirm();
+    closeScanner();
+    alert("匯入完成！");
+    _pendingParsedJSON = null;
+});
+
 /*********************
- * UI：畫表格骨架（時間／星期）
+ * 表格骨架（時間＋星期）
  *********************/
 function buildGridSkeleton() {
-    // 先清空既有內容（保留表頭）
+    // 保留表頭六格，其餘清空重建
     const heads = Array.from(tableWrap.querySelectorAll(".grid.head")).map(n => n.outerHTML).join("");
     tableWrap.innerHTML = heads;
 
-    // 逐節時間列
     for (let slot = 0; slot < VISIBLE_SLOTS; slot++) {
         // 時間欄
         const t = document.createElement("div");
@@ -68,7 +82,7 @@ function buildGridSkeleton() {
         t.textContent = TIMES[slot] || "";
         tableWrap.appendChild(t);
 
-        // 一到五空格
+        // 星期一～五空格
         for (let w of WEEKS) {
             const cell = document.createElement("div");
             cell.className = "grid cell";
@@ -80,51 +94,43 @@ function buildGridSkeleton() {
 }
 
 /*********************
- * Render：把 schedule 填到格子
+ * 渲染：把 schedule 填入格子
  *********************/
 function render() {
-    // 先清空所有格子
+    // 清空所有格子課程內容（保留格線）
     tableWrap.querySelectorAll(".grid.cell").forEach(cell => cell.innerHTML = "");
 
-    // 把每個 key（week-slot）對應的課程放進去
     Object.keys(schedule).forEach(key => {
         const list = schedule[key];
         if (!Array.isArray(list)) return;
 
         const [week, slot] = key.split("-").map(n => parseInt(n, 10));
-        // 越界（例如你只顯示 6 節）
-        if (slot >= VISIBLE_SLOTS) return;
+        if (slot >= VISIBLE_SLOTS) return; // 超出顯示的節次就先不畫
 
         const cell = tableWrap.querySelector(`.grid.cell[data-week="${week}"][data-slot="${slot}"]`);
         if (!cell) return;
 
         list.forEach(course => {
-            const card = document.createElement("div");
-            card.className = "course-card";
-            card.style.background = COURSE_BG;
-            card.style.border = `1px solid ${COURSE_BORDER}`;
-            card.style.color = COURSE_TEXT;
-            card.innerHTML = `
+            const div = document.createElement("div");
+            div.className = "course-card";
+            div.innerHTML = `
         <div class="c-title">${escapeHTML(course.name || "")}</div>
-        <div class="c-meta">${escapeHTML(course.teacher || "")} ・ ${escapeHTML(course.room || "")}</div>
+        <div class="c-meta">${escapeHTML(course.teacher || "")}${course.teacher && course.room ? " ・ " : ""}${escapeHTML(course.room || "")}</div>
       `;
-            cell.appendChild(card);
+            cell.appendChild(div);
         });
     });
 }
 
 /*********************
- * 資料存取
+ * LocalStorage
  *********************/
 function loadSchedule() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {}; // 首次打開：空物件 → 畫空表
-    } catch (e) {
-        return {};
-    }
+        return raw ? JSON.parse(raw) : {}; // 首次：空物件 → 空白課表
+    } catch { return {}; }
 }
-
 function saveSchedule() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
 }
@@ -140,27 +146,24 @@ function onClear() {
 }
 
 /*********************
- * 掃描器（相機／關閉）
+ * 掃描器（相機＋上傳）
  *********************/
 async function openScanner() {
     scanner.classList.remove("hidden");
     camHint.textContent = "";
     try {
-        // 背面鏡頭
         mediaStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: { ideal: "environment" } },
             audio: false
         });
         video.srcObject = mediaStream;
         await video.play();
-        // 設 canvas 尺寸（依相機）：
         canvas.width = video.videoWidth || 1280;
         canvas.height = video.videoHeight || 720;
     } catch (err) {
-        camHint.textContent = "相機無法啟用（可能未授權，或非 Safari / https）。可改用「上傳含 QR 圖片」。";
+        camHint.textContent = "相機無法啟用（可能未授權，或非 Safari / https）。請改用「上傳含 QR 圖片」。";
     }
 }
-
 function closeScanner() {
     if (mediaStream) {
         mediaStream.getTracks().forEach(t => t.stop());
@@ -171,14 +174,13 @@ function closeScanner() {
 }
 
 /*********************
- * 拍照 → Canvas → jsQR → 匯入
+ * 拍照 → jsQR 解碼
  *********************/
 function captureAndDecode() {
     if (!video.videoWidth) {
         alert("相機尚未就緒，或無法啟用。");
         return;
     }
-    // 把目前畫面畫進 canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
@@ -191,7 +193,7 @@ function captureAndDecode() {
 }
 
 /*********************
- * 上傳圖片 → 解析 → 匯入
+ * 上傳圖片 → jsQR 解碼
  *********************/
 function onImagePicked(e) {
     const file = e.target.files && e.target.files[0];
@@ -201,7 +203,6 @@ function onImagePicked(e) {
     reader.onload = () => {
         const imgEl = new Image();
         imgEl.onload = () => {
-            // 把圖片畫到 canvas 後解碼
             canvas.width = imgEl.width;
             canvas.height = imgEl.height;
             ctx.drawImage(imgEl, 0, 0, imgEl.width, imgEl.height);
@@ -216,74 +217,88 @@ function onImagePicked(e) {
         imgEl.src = reader.result;
     };
     reader.readAsDataURL(file);
-
-    // reset input
     e.target.value = "";
 }
 
 /*********************
- * 解析 QR 文字 → 轉換成課表 → 存檔並渲染
+ * 掃描後 → 顯示確認視窗 → 解析 → 匯入
  *********************/
 function handleQrText(text) {
-    // 有些掃描器會包在 tel: 或其他，先清一下
     const cleaned = text.trim();
+    // 嘗試 JSON pretty print
+    let pretty = cleaned;
+    let parsed = null;
 
-    let data;
     try {
-        // 有時會是 URL Encoded
         const maybeDecoded = decodeURIComponentSafe(cleaned);
-        data = JSON.parse(maybeDecoded);
-    } catch (e) {
-        try {
-            data = JSON.parse(cleaned);
-        } catch (e2) {
-            console.error("QR 內容：", cleaned);
-            alert("無法解析此 QR 內容（不是 JSON）。已列印到 console。");
-            return;
-        }
+        parsed = JSON.parse(maybeDecoded);
+    } catch {
+        try { parsed = JSON.parse(cleaned); } catch { }
     }
 
-    // 預期中興 QR 結構：
-    // [
-    //   {"m":"6810","n":"行動通訊","c":"B22","e":"EE207","d":{"w":2,"s":[2,3,4]}},
-    //   {"m":"6897","n":"隨機程序","c":"B22","e":"EE207","d":{"w":3,"s":[2,3,4]}},
-    //   ...
-    // ]
-    // d.w = 1..5（星期一..五），d.s = [節索引]（從 1 開始）
-    importNchuArray(data);
-    saveSchedule();
-    render();
-    closeScanner();
-    alert("匯入完成！");
+    if (parsed) {
+        try {
+            pretty = JSON.stringify(parsed, null, 2);
+            _pendingParsedJSON = parsed; // 暫存，等待使用者按「匯入」
+        } catch {
+            _pendingParsedJSON = null;
+        }
+    } else {
+        // 不是 JSON：仍然顯示原文，提示使用者
+        _pendingParsedJSON = null;
+    }
+
+    showConfirm(pretty, !!parsed);
 }
 
+/*********************
+ * 確認視窗
+ *********************/
+function showConfirm(contentText, isJson) {
+    confirmContent.textContent = contentText;
+    confirmModal.classList.remove("hidden");
+
+    // 可匯入 = 已解析成 JSON；否則只能取消
+    btnImport.disabled = !isJson;
+    btnImport.title = isJson ? "" : "無法解析為 JSON，請檢查內容格式";
+}
+function hideConfirm() {
+    confirmModal.classList.add("hidden");
+    confirmContent.textContent = "";
+    _pendingParsedJSON = null;
+}
+
+/*********************
+ * 將中興 JSON 陣列轉成內部結構
+ * 期望格式：
+ * [
+ *  {"m":"6810","n":"行動通訊","e":"EE207","d":{"w":2,"s":[2,3,4]}},
+ *  ...
+ * ]
+ * d.w：1..5（星期一..五）；d.s：節次（1 起算）
+ *********************/
 function importNchuArray(arr) {
     if (!Array.isArray(arr)) {
-        alert("QR 內容不是期望的課程清單。");
+        alert("QR 內容不是期望的課程清單（陣列）。");
         return;
     }
-
-    // 重置（用 QR 蓋掉目前課表）
     const next = {};
-
     arr.forEach(item => {
-        const name = item?.n || "";
-        const teacher = "";        // QR 沒固定欄位就留空（或改抓其它欄）
-        const room = item?.e || ""; // 教室
+        const name = item?.n || item?.name || "";
+        const teacher = item?.teacher || ""; // 若 QR 無此欄位，可保持空白
+        const room = item?.e || item?.room || "";
         const d = item?.d || {};
-        const w = parseInt(d?.w, 10);        // 1..5
+        const w = parseInt(d?.w, 10);           // 1..5
         const slots = Array.isArray(d?.s) ? d.s : [];
-
         if (!w || !slots.length) return;
 
         slots.forEach(s1 => {
-            const slot0 = Number(s1) - 1; // 轉 0-based
+            const slot0 = Number(s1) - 1;         // 轉 0-based
             const key = `${w}-${slot0}`;
             if (!next[key]) next[key] = [];
             next[key].push({ name, teacher, room });
         });
     });
-
     schedule = next;
 }
 
@@ -291,7 +306,7 @@ function importNchuArray(arr) {
  * 小工具
  *********************/
 function decodeURIComponentSafe(s) {
-    try { return decodeURIComponent(s); } catch (_) { return s; }
+    try { return decodeURIComponent(s); } catch { return s; }
 }
 function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));

@@ -4,11 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>中興課表（自填／QR 匯入）</title>
+    <meta name="theme-color" content="#0b1220" />
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="style.css" />
-    <meta name="theme-color" content="#0b1220" />
-
-    <!-- jsQR：QR Code 解碼 -->
+    <!-- jsQR：QR Code 影像解碼 -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
@@ -20,39 +19,60 @@
         </div>
     </header>
 
-    <p class="hint">提示：第一次打開會是空白；掃描校園 QR 後會自動匯入；清空會刪除本機資料。</p>
+    <p class="hint">提示：第一次打開會是空白（只有格線）。掃描學校 QR 後才會把課程填入；「清空」會刪除本機資料。</p>
 
-    <!-- 課表 -->
+    <!-- 課表骨架：表頭由 HTML 提供，其餘列由 app.js 動態產生 -->
     <div id="tableWrap" class="table-wrap">
-        <!-- 時間欄 -->
         <div class="grid head time">時間</div>
         <div class="grid head">星期一</div>
         <div class="grid head">星期二</div>
         <div class="grid head">星期三</div>
         <div class="grid head">星期四</div>
         <div class="grid head">星期五</div>
-
-        <!-- 這裡由 app.js 動態填入每節時間與空格 -->
+        <!-- 下面的時段列與空格由 app.js 動態建立 -->
     </div>
 
-    <!-- 掃描器（全螢幕） -->
-    <div id="scanner" class="scanner hidden">
+    <!-- 全螢幕掃描器 -->
+    <div id="scanner" class="scanner hidden" aria-hidden="true">
         <div class="scanner-inner">
             <video id="video" playsinline autoplay muted></video>
             <div class="scan-ui">
-                <input id="filePicker" type="file" accept="image/*" class="hidden" />
                 <div class="row">
                     <button id="btnCapture" class="btn primary">拍照辨識</button>
-                    <button id="btnUpload" class="btn">上傳含QR圖片</button>
+                    <button id="btnUpload" class="btn">上傳含 QR 圖片</button>
                     <button id="btnCloseScan" class="btn danger">關閉</button>
                 </div>
                 <p id="camHint" class="cam-hint"></p>
             </div>
-            <!-- 隱藏畫布：抓取 video frame 與圖片辨識 -->
             <canvas id="canvas" class="hidden"></canvas>
+            <input id="filePicker" type="file" accept="image/*" class="hidden" />
+        </div>
+    </div>
+
+    <!-- 掃描結果「確認匯入」對話框 -->
+    <div id="confirmModal" class="confirm hidden" aria-hidden="true">
+        <div class="confirm-card">
+            <div class="confirm-head">
+                <h2>確認匯入課表</h2>
+                <button id="btnCloseConfirm" class="btn ghost">關閉</button>
+            </div>
+            <p class="confirm-tip">以下為掃描到的內容（已儘量格式化）。請確認無誤再匯入。</p>
+            <pre id="confirmContent" class="confirm-content"></pre>
+            <div class="confirm-actions">
+                <button id="btnImport" class="btn primary lg">匯入</button>
+                <button id="btnCancelImport" class="btn">取消</button>
+            </div>
         </div>
     </div>
 
     <script src="app.js"></script>
+    <script>
+        // 註冊 Service Worker（可離線）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => { });
+            });
+        }
+    </script>
 </body>
 </html>

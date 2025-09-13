@@ -1,10 +1,10 @@
 :root {
     --bg: #0b1220;
-    --fg: #cbd5e1;
-    --muted: #94a3b8;
+    --fg: #e6f0ff;
+    --muted: #92a8c7;
     --grid: #233146;
-    --head: #1b2433;
-    --primary: #60a5fa;
+    --head: #131c2e;
+    --primary: #60a5fa; /* 藍色主題 */
     --danger: #ef4444;
 }
 
@@ -58,9 +58,19 @@ html, body {
     }
 
     .btn.danger {
-        background: #1e1b4b;
-        border-color: #5b21b6;
+        background: #3b1f1f;
+        border-color: #7f1d1d;
         color: #fecaca
+    }
+
+    .btn.ghost {
+        background: transparent;
+        border-color: var(--grid)
+    }
+
+    .btn.lg {
+        padding: 12px 18px;
+        font-size: 16px
     }
 
 .hint {
@@ -69,6 +79,7 @@ html, body {
     font-size: 14px
 }
 
+/* 課表 Grid（CSS Grid: 1 欄時間 + 5 欄星期） */
 .table-wrap {
     display: grid;
     grid-template-columns: 140px repeat(5,1fr);
@@ -88,7 +99,8 @@ html, body {
 
     .grid.head {
         background: var(--head);
-        font-weight: 700
+        font-weight: 700;
+        text-align: center
     }
 
     .grid.time {
@@ -99,7 +111,7 @@ html, body {
         position: relative
     }
 
-/* 課程卡（藍） */
+/* 課程卡（藍色） */
 .course-card {
     background: rgba(59,130,246,0.16);
     border: 1px solid rgba(59,130,246,0.5);
@@ -119,7 +131,7 @@ html, body {
     opacity: .85
 }
 
-/* 掃描器（全螢幕覆蓋） */
+/* 掃描器（全螢幕） */
 .scanner {
     position: fixed;
     inset: 0;
@@ -171,4 +183,59 @@ html, body {
 
 .hidden {
     display: none
+}
+
+/* 確認匯入對話框 */
+.confirm {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000
+}
+
+    .confirm.hidden {
+        display: none
+    }
+
+.confirm-card {
+    width: min(920px,95vw);
+    background: #0f172a;
+    border: 1px solid #2a3a55;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 80px rgba(0,0,0,.5)
+}
+
+.confirm-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #22314a
+}
+
+.confirm-tip {
+    margin: 10px 12px;
+    color: #b5c7e6
+}
+
+.confirm-content {
+    margin: 0 12px 12px;
+    max-height: 45vh;
+    overflow: auto;
+    background: #0b1220;
+    border: 1px solid #22314a;
+    border-radius: 8px;
+    padding: 10px;
+    color: #dbeafe
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 12px
 }
